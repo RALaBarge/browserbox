@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "BrowserBox",
+  "version": "0.1.0",
+  "description": "Browser API middleware — exposes storage and fetch to local LLM agents via WebSocket relay.",
+
+  "permissions": [
+    "storage",
+    "cookies",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "BrowserBox"
+  }
+}

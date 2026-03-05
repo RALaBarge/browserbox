@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BrowserBox</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 13px;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    width: 280px;
+    padding: 14px;
+  }
+  h1 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #a0c4ff;
+    margin-bottom: 12px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .label { color: #888; }
+  .value { color: #e0e0e0; }
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: #555;
+  }
+  .dot.connected { background: #4caf50; }
+  .dot.disconnected { background: #f44336; }
+  .status-text.connected { color: #4caf50; }
+  .status-text.disconnected { color: #f44336; }
+  .divider { border: none; border-top: 1px solid #333; margin: 10px 0; }
+  .last-tool { color: #a0c4ff; word-break: break-all; }
+  .error { color: #f44336; font-size: 11px; margin-top: 6px; word-break: break-all; }
+  .muted { color: #555; }
+</style>
+</head>
+<body>
+<h1>BrowserBox</h1>
+
+<div class="row">
+  <span class="label">relay</span>
+  <span>
+    <span class="dot" id="dot"></span>
+    <span class="status-text" id="status">disconnected</span>
+  </span>
+</div>
+
+<hr class="divider">
+
+<div class="row">
+  <span class="label">calls</span>
+  <span class="value" id="count">0</span>
+</div>
+
+<div class="row">
+  <span class="label">last tool</span>
+  <span class="last-tool" id="last-tool">—</span>
+</div>
+
+<div id="error-row" style="display:none">
+  <div class="error" id="last-error"></div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
