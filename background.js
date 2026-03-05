@@ -11,17 +11,29 @@
  *   { "id": "string", "error": "..." }                               — failure
  */
 
-import { StorageAdapter } from "./adapters/storage.js";
-import { FetchAdapter }   from "./adapters/fetch.js";
-import { DomAdapter }     from "./adapters/dom.js";
+import { StorageAdapter }  from "./adapters/storage.js";
+import { FetchAdapter }    from "./adapters/fetch.js";
+import { DomAdapter }      from "./adapters/dom.js";
+import { TabsAdapter }     from "./adapters/tabs.js";
+import { NavAdapter }      from "./adapters/nav.js";
+import { ClipAdapter }     from "./adapters/clip.js";
+import { NetworkAdapter }  from "./adapters/network.js";
+import { InjectAdapter }   from "./adapters/inject.js";
+import { PdfAdapter }      from "./adapters/pdf.js";
 
-const RELAY_URL   = "ws://localhost:9009";
+const RELAY_URL    = "ws://localhost:9009";
 const RECONNECT_MS = 3000;
 
 const ADAPTERS = {
   storage: StorageAdapter,
   fetch:   FetchAdapter,
   dom:     DomAdapter,
+  tabs:    TabsAdapter,
+  nav:     NavAdapter,
+  clip:    ClipAdapter,
+  network: NetworkAdapter,
+  inject:  InjectAdapter,
+  pdf:     PdfAdapter,
 };
 
 // Shared state visible to popup via chrome.storage.session

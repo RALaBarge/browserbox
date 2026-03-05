@@ -14,20 +14,48 @@ const MAX_ELEMENTS = 50;   // cap on query_all results
 const MAX_HTML_BYTES = 64 * 1024;  // 64 KB — prevent flooding context window
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.type !== "bb_dom") return false;
+  if (msg.type === "bb_dom") {
+    (async () => {
+      try {
+        sendResponse({ ok: true, result: await dispatch(msg.method, msg.input) });
+      } catch (e) {
+        sendResponse({ ok: false, error: e.message });
+      }
+    })();
+    return true;
+  }
 
-  const run = async () => {
-    try {
-      const result = await dispatch(msg.method, msg.input);
-      sendResponse({ ok: true, result });
-    } catch (e) {
-      sendResponse({ ok: false, error: e.message });
-    }
-  };
+  if (msg.type === "bb_clip") {
+    (async () => {
+      try {
+        sendResponse({ ok: true, result: await clipDispatch(msg.method, msg.input) });
+      } catch (e) {
+        sendResponse({ ok: false, error: e.message });
+      }
+    })();
+    return true;
+  }
 
-  run();
-  return true; // keep message channel open for async response
+  return false;
 });
+
+// ---------------------------------------------------------------------------
+// Clipboard
+// ---------------------------------------------------------------------------
+
+async function clipDispatch(method, input) {
+  switch (method) {
+    case "read":  return navigator.clipboard.readText();
+    case "write": {
+      const text = typeof input === "string"
+        ? (() => { try { return JSON.parse(input).text; } catch { return input; } })()
+        : (input?.text ?? "");
+      await navigator.clipboard.writeText(text);
+      return "written";
+    }
+    default: throw new Error(`unknown clip method: ${method}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Dispatch

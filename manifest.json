@@ -8,7 +8,9 @@
     "storage",
     "cookies",
     "tabs",
-    "scripting"
+    "scripting",
+    "clipboardRead",
+    "clipboardWrite"
   ],
 
   "host_permissions": [
