@@ -13,6 +13,7 @@
 
 import { StorageAdapter } from "./adapters/storage.js";
 import { FetchAdapter }   from "./adapters/fetch.js";
+import { DomAdapter }     from "./adapters/dom.js";
 
 const RELAY_URL   = "ws://localhost:9009";
 const RECONNECT_MS = 3000;
@@ -20,6 +21,7 @@ const RECONNECT_MS = 3000;
 const ADAPTERS = {
   storage: StorageAdapter,
   fetch:   FetchAdapter,
+  dom:     DomAdapter,
 };
 
 // Shared state visible to popup via chrome.storage.session
