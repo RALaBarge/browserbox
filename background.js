@@ -124,6 +124,17 @@ async function dispatch(msg) {
 }
 
 // ---------------------------------------------------------------------------
+// Keepalive — MV3 service workers are killed after ~30s of inactivity.
+// A repeating alarm wakes the SW every 25s, preventing termination.
+// ---------------------------------------------------------------------------
+
+chrome.alarms.create("bb_keepalive", { periodInMinutes: 25 / 60 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== "bb_keepalive") return;
+  if (!ws || ws.readyState === WebSocket.CLOSED) connect();
+});
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 

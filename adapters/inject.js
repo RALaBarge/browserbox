@@ -24,14 +24,21 @@ export const InjectAdapter = {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error("no active tab");
 
-    // Wrap in an async IIFE so top-level await works and we capture the return
-    const wrapped = `(async () => { ${code} })()`;
-
+    // Runs in ISOLATED world. eval() is permitted in isolated world (exempt from
+    // Code is passed as an arg — no new Function() needed in the service worker.
+    // eval() runs in the page's MAIN world. Pages with strict script-src CSP will
+    // block unsafe-eval; inject.js returns null on those pages.
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world:  "MAIN",
-      func:   new Function("__code", "return eval(__code)"),
-      args:   [wrapped],
+      func:   (userCode) => {
+        try {
+          return eval(`(function() { ${userCode} })()`);
+        } catch (e) {
+          throw new Error(e.message || String(e));
+        }
+      },
+      args:   [code],
     });
 
     const val = results?.[0]?.result;
