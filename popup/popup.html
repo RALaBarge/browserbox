@@ -8,69 +8,104 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: ui-monospace, "Cascadia Code", monospace;
-    font-size: 13px;
+    font-size: 12px;
     background: #1a1a1a;
     color: #e0e0e0;
-    width: 280px;
-    padding: 14px;
+    width: 300px;
+    padding: 12px 14px;
   }
-  h1 {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    color: #a0c4ff;
-    margin-bottom: 12px;
-  }
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
+  h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; color: #a0c4ff; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
   .label { color: #888; }
-  .value { color: #e0e0e0; }
-  .dot {
-    display: inline-block;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    margin-right: 6px;
-    background: #555;
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; background: #555; }
+  .dot.ok   { background: #4caf50; box-shadow: 0 0 4px #4caf5088; }
+  .dot.err  { background: #f44336; }
+  .dot.warn { background: #ff9800; }
+  .ok   { color: #4caf50; }
+  .err  { color: #f44336; }
+  .warn { color: #ff9800; }
+  .divider { border: none; border-top: 1px solid #2a2a2a; margin: 8px 0; }
+  .btn {
+    background: #2a2a2a; border: 1px solid #444; color: #ccc;
+    padding: 3px 10px; border-radius: 3px; cursor: pointer; font-size: 11px;
+    font-family: inherit;
   }
-  .dot.connected { background: #4caf50; }
-  .dot.disconnected { background: #f44336; }
-  .status-text.connected { color: #4caf50; }
-  .status-text.disconnected { color: #f44336; }
-  .divider { border: none; border-top: 1px solid #333; margin: 10px 0; }
-  .last-tool { color: #a0c4ff; word-break: break-all; }
-  .error { color: #f44336; font-size: 11px; margin-top: 6px; word-break: break-all; }
-  .muted { color: #555; }
+  .btn:hover { background: #333; }
+  .btn:active { background: #444; }
+  .btn.primary { background: #1e3a5f; border-color: #a0c4ff; color: #a0c4ff; }
+  .btn.primary:hover { background: #254878; }
+  .notice {
+    background: #1e1e1e; border: 1px solid #333; border-radius: 3px;
+    padding: 7px 9px; margin-top: 8px; font-size: 11px; color: #aaa;
+    line-height: 1.6;
+  }
+  .notice code { color: #a0c4ff; background: #222; padding: 1px 4px; border-radius: 2px; }
+  .log-entry { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-bottom: 1px solid #222; gap: 6px; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-tool { color: #a0c4ff; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-ok  { color: #4caf50; flex-shrink: 0; }
+  .log-err { color: #f44336; flex-shrink: 0; }
+  .log-ts  { color: #555; font-size: 10px; flex-shrink: 0; }
+  #call-log { max-height: 110px; overflow-y: auto; }
+  #call-log:empty::before { content: "no calls yet"; color: #444; font-style: italic; }
 </style>
 </head>
 <body>
 <h1>BrowserBox</h1>
 
+<!-- Relay ping status -->
 <div class="row">
   <span class="label">relay</span>
-  <span>
-    <span class="dot" id="dot"></span>
-    <span class="status-text" id="status">disconnected</span>
-  </span>
+  <span><span class="dot" id="relay-dot"></span><span id="relay-status">checking…</span></span>
+</div>
+
+<!-- Extension ↔ relay -->
+<div class="row">
+  <span class="label">extension</span>
+  <span><span class="dot" id="ext-dot"></span><span id="ext-status">—</span></span>
+</div>
+
+<!-- Agent count -->
+<div class="row">
+  <span class="label">agents</span>
+  <span id="agent-count" class="label">—</span>
 </div>
 
 <hr class="divider">
 
+<!-- Call stats -->
 <div class="row">
-  <span class="label">calls</span>
-  <span class="value" id="count">0</span>
+  <span class="label">total calls</span>
+  <span id="count">0</span>
 </div>
-
 <div class="row">
   <span class="label">last tool</span>
-  <span class="last-tool" id="last-tool">—</span>
+  <span id="last-tool" style="color:#a0c4ff">—</span>
+</div>
+<div id="error-row" style="display:none;margin-bottom:4px">
+  <div style="color:#888;font-size:10px;margin-bottom:2px">last error</div>
+  <div id="last-error" class="err" style="font-size:11px;word-break:break-all"></div>
 </div>
 
-<div id="error-row" style="display:none">
-  <div class="error" id="last-error"></div>
+<hr class="divider">
+
+<!-- Call log -->
+<div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Recent calls</div>
+<div id="call-log"></div>
+
+<hr class="divider">
+
+<!-- Actions -->
+<div style="display:flex;gap:6px">
+  <button class="btn primary" onclick="reconnect()">↺ Reconnect</button>
+  <button class="btn" onclick="refresh()">⟳ Refresh</button>
+</div>
+
+<!-- Relay not running — show start instructions -->
+<div id="relay-notice" class="notice" style="display:none">
+  Relay is not running. Start it with:<br>
+  <code>python ws_relay.py</code><br>
+  Docker: <code>python ws_relay.py --host 0.0.0.0</code>
 </div>
 
 <script src="popup.js"></script>

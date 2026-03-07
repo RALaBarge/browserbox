@@ -531,16 +531,20 @@ class Relay:
                     await ws.send(json.dumps({"id": call_id, "result": TOOL_SCHEMA}))
                     continue
 
+                tool_name = msg.get("tool", "?")
+
                 # Forward tool calls to the browser
-                log.debug("agent → browser: %s", raw[:120])
                 if self.browser is None:
+                    log.warning("agent → [no browser] tool=%s  (extension not connected)", tool_name)
                     call_id = msg.get("id")
                     err = json.dumps({"id": call_id, "error": "browser not connected"})
                     await ws.send(err)
                 else:
+                    log.info("agent → browser: %s", tool_name)
                     try:
                         await self.browser.send(raw)
                     except Exception as e:
+                        log.warning("send to browser failed for %s: %s", tool_name, e)
                         call_id = msg.get("id")
                         err = json.dumps({"id": call_id, "error": f"send to browser failed: {e}"})
                         await ws.send(err)
@@ -550,51 +554,84 @@ class Relay:
 
 
 # ---------------------------------------------------------------------------
-# HTTP schema endpoint (asyncio raw server — no extra dependencies)
+# HTTP schema / status endpoint (asyncio raw server — no extra dependencies)
 # ---------------------------------------------------------------------------
 
 _SCHEMA_BYTES = json.dumps(TOOL_SCHEMA, indent=2).encode()
-_HTTP_200 = (
-    b"HTTP/1.1 200 OK\r\n"
-    b"Content-Type: application/json\r\n"
-    b"Access-Control-Allow-Origin: *\r\n"
-    + f"Content-Length: {len(_SCHEMA_BYTES)}\r\n".encode()
-    + b"Connection: close\r\n"
-    b"\r\n"
-    + _SCHEMA_BYTES
-)
 _HTTP_404 = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 
 
-async def _http_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    try:
-        data = await asyncio.wait_for(reader.read(1024), timeout=5)
-        line = data.decode(errors="replace").split("\r\n")[0]
-        parts = line.split(" ")
-        method = parts[0] if parts else ""
-        path   = parts[1] if len(parts) > 1 else ""
-        writer.write(_HTTP_200 if (method == "GET" and path == "/tools") else _HTTP_404)
-        await writer.drain()
-    except Exception:
-        pass
-    finally:
-        writer.close()
+def _json_response(body: dict) -> bytes:
+    payload = json.dumps(body).encode()
+    return (
+        b"HTTP/1.1 200 OK\r\n"
+        b"Content-Type: application/json\r\n"
+        b"Access-Control-Allow-Origin: *\r\n"
+        + f"Content-Length: {len(payload)}\r\n".encode()
+        + b"Connection: close\r\n\r\n"
+        + payload
+    )
+
+
+def _make_http_handler(relay: "Relay"):
+    _schema_resp = (
+        b"HTTP/1.1 200 OK\r\n"
+        b"Content-Type: application/json\r\n"
+        b"Access-Control-Allow-Origin: *\r\n"
+        + f"Content-Length: {len(_SCHEMA_BYTES)}\r\n".encode()
+        + b"Connection: close\r\n\r\n"
+        + _SCHEMA_BYTES
+    )
+
+    async def _http_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        try:
+            data = await asyncio.wait_for(reader.read(1024), timeout=5)
+            line = data.decode(errors="replace").split("\r\n")[0]
+            parts = line.split(" ")
+            method = parts[0] if parts else ""
+            path   = parts[1] if len(parts) > 1 else ""
+            if method == "GET":
+                if path == "/tools":
+                    writer.write(_schema_resp)
+                elif path == "/ping":
+                    writer.write(_json_response({"pong": True}))
+                elif path == "/status":
+                    writer.write(_json_response({
+                        "relay": "ok",
+                        "browser_connected": relay.browser is not None,
+                        "agent_count": len(relay.agents),
+                    }))
+                else:
+                    writer.write(_HTTP_404)
+            else:
+                writer.write(_HTTP_404)
+            await writer.drain()
+        except Exception:
+            pass
+        finally:
+            writer.close()
+
+    return _http_handler
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def main(ws_port: int, http_port: int) -> None:
+async def main(ws_port: int, http_port: int, host: str) -> None:
     relay = Relay()
-    log.info("BrowserBox WS relay listening on ws://localhost:%d", ws_port)
-    ws_server = websockets.serve(relay.handle, "localhost", ws_port)
+    log.info("BrowserBox WS relay listening on ws://%s:%d", host, ws_port)
+    ws_server = websockets.serve(relay.handle, host, ws_port)
 
     tasks = [asyncio.ensure_future(ws_server.__aenter__())]
 
     if http_port:
-        http_server = await asyncio.start_server(_http_handler, "localhost", http_port)
-        log.info("BrowserBox schema endpoint at http://localhost:%d/tools", http_port)
+        http_handler = _make_http_handler(relay)
+        http_server = await asyncio.start_server(http_handler, host, http_port)
+        log.info(
+            "BrowserBox HTTP endpoints at http://%s:%d  (GET /tools  /ping  /status)",
+            host, http_port,
+        )
         tasks.append(asyncio.ensure_future(http_server.serve_forever()))
 
     await asyncio.Future()  # run forever
@@ -602,7 +639,8 @@ async def main(ws_port: int, http_port: int) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port",      type=int, default=9009, help="WebSocket relay port (default: 9009)")
-    parser.add_argument("--http-port", type=int, default=9010, help="HTTP schema port (default: 9010, 0 to disable)")
+    parser.add_argument("--port",      type=int, default=9009,        help="WebSocket relay port (default: 9009)")
+    parser.add_argument("--http-port", type=int, default=9010,        help="HTTP schema port (default: 9010, 0 to disable)")
+    parser.add_argument("--host",      default="localhost",            help="Bind address (default: localhost; use 0.0.0.0 to accept Docker/LAN connections)")
     args = parser.parse_args()
-    asyncio.run(main(args.port, args.http_port))
+    asyncio.run(main(args.port, args.http_port, args.host))

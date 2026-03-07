@@ -42,6 +42,7 @@ const state = {
   callCount: 0,
   lastTool: null,
   lastError: null,
+  callLog: [],   // last 10 calls: [{tool, ok, ts}]
 };
 
 async function saveState() {
@@ -110,14 +111,20 @@ async function dispatch(msg) {
     return { id, error: `unknown method '${method}' on namespace '${ns}'` };
   }
 
+  const entry = { tool, ts: Date.now() };
   try {
     const result = await adapter[method](input);
     state.callCount++;
     state.lastTool = tool;
+    entry.ok = true;
+    state.callLog = [entry, ...state.callLog].slice(0, 10);
     await saveState();
     return { id, result: result ?? null };
   } catch (e) {
     state.lastError = `${tool}: ${e.message}`;
+    entry.ok = false;
+    entry.error = e.message;
+    state.callLog = [entry, ...state.callLog].slice(0, 10);
     await saveState();
     return { id, error: e.message };
   }
@@ -132,6 +139,23 @@ chrome.alarms.create("bb_keepalive", { periodInMinutes: 25 / 60 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== "bb_keepalive") return;
   if (!ws || ws.readyState === WebSocket.CLOSED) connect();
+});
+
+// ---------------------------------------------------------------------------
+// Message listener — allows popup to trigger a reconnect attempt
+// ---------------------------------------------------------------------------
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.action === "reconnect") {
+    console.log("[BrowserBox] popup requested reconnect");
+    if (ws && ws.readyState !== WebSocket.CLOSED) {
+      ws.close();
+    } else {
+      connect();
+    }
+    sendResponse({ ok: true });
+  }
+  return false;
 });
 
 // ---------------------------------------------------------------------------
