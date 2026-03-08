@@ -101,5 +101,8 @@ async function reconnect() {
   setTimeout(refresh, 600);
 }
 
+document.getElementById('refresh-btn').addEventListener('click', () => refresh(true));
+document.getElementById('reconnect-btn').addEventListener('click', reconnect);
+
 refresh();
 setInterval(refresh, 1500);
