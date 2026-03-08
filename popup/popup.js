@@ -85,7 +85,7 @@ async function refresh(manual = false) {
     if (btn) {
       btn.textContent = '✓';
       btn.classList.add('success');
-      setTimeout(() => { btn.textContent = '⟳ Refresh'; btn.classList.remove('success'); }, 900);
+      setTimeout(() => { btn.textContent = '⟳ Refresh'; btn.classList.remove('success'); }, 1500);
     }
   }
 }
