@@ -34,6 +34,7 @@
   .btn:active { background: #444; }
   .btn.primary { background: #1e3a5f; border-color: #a0c4ff; color: #a0c4ff; }
   .btn.primary:hover { background: #254878; }
+  .btn.success { border-color: #4caf50; color: #4caf50; transition: none; }
   .notice {
     background: #1e1e1e; border: 1px solid #333; border-radius: 3px;
     padding: 7px 9px; margin-top: 8px; font-size: 11px; color: #aaa;
@@ -51,7 +52,7 @@
 </style>
 </head>
 <body>
-<h1>BrowserBox</h1>
+<h1>BrowserBox <span id="bb-version" style="font-size:10px;color:#555;font-weight:normal;letter-spacing:0"></span></h1>
 
 <!-- Relay ping status -->
 <div class="row">
@@ -98,7 +99,7 @@
 <!-- Actions -->
 <div style="display:flex;gap:6px">
   <button class="btn primary" onclick="reconnect()">↺ Reconnect</button>
-  <button class="btn" onclick="refresh()">⟳ Refresh</button>
+  <button class="btn" id="refresh-btn" onclick="refresh(true)">⟳ Refresh</button>
 </div>
 
 <!-- Relay not running — show start instructions -->

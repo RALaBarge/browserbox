@@ -1,5 +1,7 @@
 const STATUS_URL = "http://localhost:9010/status";
 
+document.getElementById('bb-version').textContent = 'v' + chrome.runtime.getManifest().version;
+
 function timeSince(ts) {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 60) return `${s}s ago`;
@@ -28,7 +30,7 @@ async function pingRelay() {
   }
 }
 
-async function refresh() {
+async function refresh(manual = false) {
   // 1. Ping relay directly
   const relayStatus = await pingRelay();
   const relayUp = relayStatus !== null;
@@ -75,6 +77,16 @@ async function refresh() {
         <span class="${e.ok ? "log-ok" : "log-err"}">${e.ok ? "✓" : "✗"}</span>
         <span class="log-ts">${timeSince(e.ts)}</span>
       </div>`).join("");
+  }
+
+  // 4. Visual confirmation on manual refresh
+  if (manual) {
+    const btn = document.getElementById('refresh-btn');
+    if (btn) {
+      btn.textContent = '✓';
+      btn.classList.add('success');
+      setTimeout(() => { btn.textContent = '⟳ Refresh'; btn.classList.remove('success'); }, 900);
+    }
   }
 }
 
