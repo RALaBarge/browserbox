@@ -31,6 +31,16 @@ async function pingRelay() {
 }
 
 async function refresh(manual = false) {
+  // Visual confirmation fires immediately on manual click — before any awaits
+  if (manual) {
+    const btn = document.getElementById('refresh-btn');
+    if (btn) {
+      btn.textContent = '✓';
+      btn.classList.add('success');
+      setTimeout(() => { btn.textContent = '⟳ Refresh'; btn.classList.remove('success'); }, 1500);
+    }
+  }
+
   // 1. Ping relay directly
   const relayStatus = await pingRelay();
   const relayUp = relayStatus !== null;
@@ -79,15 +89,6 @@ async function refresh(manual = false) {
       </div>`).join("");
   }
 
-  // 4. Visual confirmation on manual refresh
-  if (manual) {
-    const btn = document.getElementById('refresh-btn');
-    if (btn) {
-      btn.textContent = '✓';
-      btn.classList.add('success');
-      setTimeout(() => { btn.textContent = '⟳ Refresh'; btn.classList.remove('success'); }, 1500);
-    }
-  }
 }
 
 async function reconnect() {
