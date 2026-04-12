@@ -500,7 +500,16 @@ class Relay:
         log.info("Browser extension connected")
         try:
             async for raw in ws:
-                # Forward browser responses to all connected agents
+                try:
+                    msg = json.loads(raw)
+                except json.JSONDecodeError:
+                    log.debug("browser sent non-JSON: %s", raw[:80])
+                    continue
+                # Swallow extension keepalive pings — not a tool response
+                if msg.get("type") in ("ping", "pong"):
+                    log.debug("browser keepalive %s received", msg.get("type"))
+                    continue
+                # Forward browser responses (tool results) to all connected agents
                 log.debug("browser → agents: %s", raw[:120])
                 dead = set()
                 for agent in self.agents:
@@ -529,6 +538,10 @@ class Relay:
                     call_id = msg.get("id")
                     log.debug("agent discovery request id=%s", call_id)
                     await ws.send(json.dumps({"id": call_id, "result": TOOL_SCHEMA}))
+                    continue
+
+                # Ignore extension keepalive pings forwarded accidentally from browser side
+                if msg.get("type") in ("ping", "pong"):
                     continue
 
                 tool_name = msg.get("tool", "?")

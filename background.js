@@ -64,6 +64,7 @@ function connect() {
     state.connected = true;
     state.lastError = null;
     await saveState();
+    startKeepalive();
   });
 
   ws.addEventListener("message", async (event) => {
@@ -74,12 +75,15 @@ function connect() {
       console.warn("[BrowserBox] non-JSON message ignored:", event.data);
       return;
     }
+    // Ignore relay-side pong responses to our keepalive pings (if any)
+    if (msg.type === "pong") return;
     const response = await dispatch(msg);
     ws.send(JSON.stringify(response));
   });
 
   ws.addEventListener("close", async () => {
     console.log("[BrowserBox] relay disconnected — reconnecting in", RECONNECT_MS, "ms");
+    stopKeepalive();
     state.connected = false;
     await saveState();
     setTimeout(connect, RECONNECT_MS);
@@ -132,8 +136,31 @@ async function dispatch(msg) {
 
 // ---------------------------------------------------------------------------
 // Keepalive — MV3 service workers are killed after ~30s of inactivity.
-// A repeating alarm wakes the SW every 25s, preventing termination.
+//
+// Two layers:
+//  1. Application-level ping sent every 20s over the open WebSocket.
+//     Gives the SW an active setInterval task so Chrome keeps it alive.
+//     The relay discards these pings — they are not forwarded to agents.
+//  2. chrome.alarms every 25s as a fallback: if the WS dropped while
+//     the SW was suspended, the alarm wakes it up and reconnects.
+//     NOTE: Chrome rounds alarm periods below 1 min to 1 min for
+//     unpacked extensions — the WS ping is therefore the primary mechanism.
 // ---------------------------------------------------------------------------
+
+let _keepaliveTimer = null;
+
+function startKeepalive() {
+  stopKeepalive();
+  _keepaliveTimer = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "ping" }));
+    }
+  }, 20000);
+}
+
+function stopKeepalive() {
+  if (_keepaliveTimer) { clearInterval(_keepaliveTimer); _keepaliveTimer = null; }
+}
 
 chrome.alarms.create("bb_keepalive", { periodInMinutes: 25 / 60 });
 chrome.alarms.onAlarm.addListener((alarm) => {
