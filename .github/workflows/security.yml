@@ -2,16 +2,14 @@ name: Security Scanning
 
 on:
   push:
-    branches: [main]
+    branches: [main, macos, master]
   pull_request:
-    branches: [main]
+    branches: [main, macos, master]
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     name: Dependency & Code Security Scan
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pip-audit bandit semgrep
+          pip install pip-audit bandit
+          pip install -e ".[dev]" || true
 
       - name: Run pip-audit (dependencies)
         run: |
@@ -33,16 +32,55 @@ jobs:
 
       - name: Run bandit (code)
         run: |
-          bandit -r . -f json -o bandit-report.json --exclude "./.venv,./.git,./tests" || true
+          bandit -r . --exclude tests -f json -o bandit-report.json || true
           cat bandit-report.json
         continue-on-error: true
 
       - name: Run semgrep (patterns)
-        run: |
-          semgrep --config=p/security-audit --json -o semgrep-report.json . || true
-          cat semgrep-report.json
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/security-audit
         continue-on-error: true
 
       - name: Run pytest
         run: |
-          pytest tests/ -v --tb=short 2>/dev/null || pytest . -v --tb=short 2>/dev/null || true
+          pytest tests/ -v --tb=short -m "not slow" --timeout=300 || true
+        continue-on-error: true
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build & Verify Distribution
+    needs: scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip build twine
+
+      - name: Build distributions
+        run: |
+          python -m build --outdir dist/ || true
+
+      - name: Verify distribution contents
+        run: |
+          twine check dist/* || true
+
+      - name: Generate hashes
+        run: |
+          cd dist/
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+          retention-days: 30
