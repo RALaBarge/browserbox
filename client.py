@@ -22,8 +22,13 @@ See discover() or GET http://localhost:9010/tools for the full schema.
 
 import asyncio
 import json
+import sys
 import uuid
 from typing import Any
+
+# Never write __pycache__ into the extension directory — Chrome refuses to
+# load any directory name starting with "_".
+sys.dont_write_bytecode = True
 
 import websockets
 

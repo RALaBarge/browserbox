@@ -1,0 +1,10 @@
+# Python bytecode / caches — Chrome refuses to load dirs starting with "_"
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# local runtime artifacts
+relay.log

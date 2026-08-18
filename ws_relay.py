@@ -29,7 +29,12 @@ import asyncio
 import json
 import logging
 import argparse
+import sys
 import websockets
+
+# Never write __pycache__ into the extension directory — Chrome refuses to
+# load any directory name starting with "_".
+sys.dont_write_bytecode = True
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("browserbox-relay")
