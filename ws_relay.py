@@ -157,6 +157,47 @@ TOOL_SCHEMA = {
             "returns": 'JSON string: {"status": <int>, "body": <string>}',
         },
         {
+            "name": "fetch.put",
+            "description": "HTTP PUT from the extension context. Same input shape as fetch.post.",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "url":     {"type": "string"},
+                    "body":    {"type": "string", "description": "Raw body string"},
+                    "json":    {"description": "Will be JSON-serialized and Content-Type set automatically"},
+                    "headers": {"type": "object"},
+                },
+                "required": ["url"],
+            },
+            "returns": 'JSON string: {"status": <int>, "body": <string>}',
+        },
+        {
+            "name": "fetch.patch",
+            "description": "HTTP PATCH from the extension context. Same input shape as fetch.post.",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "url":     {"type": "string"},
+                    "body":    {"type": "string", "description": "Raw body string"},
+                    "json":    {"description": "Will be JSON-serialized and Content-Type set automatically"},
+                    "headers": {"type": "object"},
+                },
+                "required": ["url"],
+            },
+            "returns": 'JSON string: {"status": <int>, "body": <string>}',
+        },
+        {
+            "name": "fetch.delete",
+            "description": "HTTP DELETE from the extension context.",
+            "input": {
+                "oneOf": [
+                    {"type": "string", "description": "URL"},
+                    {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+                ]
+            },
+            "returns": 'JSON string: {"status": <int>, "body": <string>}',
+        },
+        {
             "name": "fetch.head",
             "description": "HTTP HEAD — returns response headers only.",
             "input": {

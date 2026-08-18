@@ -1,9 +1,11 @@
 /**
  * TabsAdapter — manage browser tabs and capture screenshots.
  *
- * Tools:
- *   tabs.list()                              → array of {id, url, title, active, index}
- *   tabs.get_current()                       → {id, url, title, index}
+* Tools:
+ *   tabs.list()                              → array of tab info objects
+ *   tabs.windows()                           → array of {id, focused, state, type, incognito, tabs: [...]}
+ *   tabs.focus_window({id})                  → "window focused"
+ *   tabs.get_current()                       → {id, url, title, index, ...}
  *   tabs.open({url, background?})            → {id, url}
  *   tabs.close({id?})                        → "closed"  (defaults to active tab)
  *   tabs.switch({id})                        → "switched"
@@ -15,6 +17,25 @@ export const TabsAdapter = {
   async list() {
     const tabs = await chrome.tabs.query({});
     return JSON.stringify(tabs.map(tabInfo));
+  },
+
+  async windows() {
+    const windows = await chrome.windows.getAll({ populate: true });
+    return JSON.stringify(windows.map(w => ({
+      id:        w.id,
+      focused:   w.focused,
+      state:     w.state,       // "normal", "minimized", "maximized", "fullscreen"
+      type:      w.type,        // "normal", "popup", "panel", "devtools"
+      incognito: w.incognito,
+      tabs:      (w.tabs || []).map(tabInfo),
+    })));
+  },
+
+  async focus_window(input) {
+    const params = parse(input);
+    if (!params.id) throw new Error("focus_window requires {id}");
+    await chrome.windows.update(params.id, { focused: true });
+    return "window focused";
   },
 
   async get_current() {
@@ -65,7 +86,22 @@ export const TabsAdapter = {
 // ---------------------------------------------------------------------------
 
 function tabInfo(t) {
-  return { id: t.id, url: t.url, title: t.title, active: t.active, index: t.index };
+  return {
+    id:           t.id,
+    url:          t.url,
+    title:        t.title,
+    active:       t.active,
+    index:        t.index,
+    windowId:     t.windowId,
+    status:       t.status,        // "loading" | "complete"
+    pinned:       t.pinned,
+    audible:      t.audible,
+    discarded:    t.discarded,
+    groupId:      t.groupId,
+    favIconUrl:   t.favIconUrl || null,
+    lastAccessed: t.lastAccessed,
+    mutedInfo:    t.mutedInfo ? { muted: t.mutedInfo.muted, reason: t.mutedInfo.reason || null } : null,
+  };
 }
 
 function parse(input) {

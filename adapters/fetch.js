@@ -7,6 +7,9 @@
  * Tools:
  *   fetch.get(url)                                → response body (text)
  *   fetch.post({url, body, headers?, json?})      → {status, body}
+ *   fetch.put({url, body, headers?, json?})       → {status, body}
+ *   fetch.patch({url, body, headers?, json?})     → {status, body}
+ *   fetch.delete({url})                           → {status, body}
  *   fetch.head(url)                               → headers object
  */
 
@@ -43,6 +46,22 @@ export const FetchAdapter = {
       body,
     });
 
+    const text = await readBody(resp);
+    return JSON.stringify({ status: resp.status, body: text });
+  },
+
+  async put(input) {
+    return await _mutate(input, "PUT");
+  },
+
+  async patch(input) {
+    return await _mutate(input, "PATCH");
+  },
+
+  async delete(input) {
+    const url = typeof input === "string" ? input.trim() : input.url;
+    if (!url) throw new Error("fetch.delete requires a URL string");
+    const resp = await timedFetch(url, { method: "DELETE" });
     const text = await readBody(resp);
     return JSON.stringify({ status: resp.status, body: text });
   },
@@ -99,4 +118,22 @@ function concat(chunks) {
   let offset = 0;
   for (const c of chunks) { out.set(c, offset); offset += c.length; }
   return out;
+}
+
+// Shared helper for PUT / PATCH mutations
+async function _mutate(input, method) {
+  const params = typeof input === "string" ? JSON.parse(input) : input;
+  if (!params.url) throw new Error(`fetch.${method.toLowerCase()} requires {url, body}`);
+
+  const headers = params.headers || {};
+  let body = params.body ?? "";
+
+  if (params.json !== undefined) {
+    body = JSON.stringify(params.json);
+    headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
+  }
+
+  const resp = await timedFetch(params.url, { method, headers, body });
+  const text = await readBody(resp);
+  return JSON.stringify({ status: resp.status, body: text });
 }
